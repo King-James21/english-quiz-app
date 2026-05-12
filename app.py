@@ -69,8 +69,6 @@ if 'logged_in' not in st.session_state:
 
 if not st.session_state.logged_in:
     # --- SHOW LOGIN FORM ---
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
     
     if st.button("Login"):
         success, msg = login(username, password)
