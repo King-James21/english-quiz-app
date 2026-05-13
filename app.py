@@ -185,7 +185,8 @@ if current_q < len(st.session_state.questions):
 
         st.session_state.q_index += 1
         st.rerun()
-        elif st.session_state.page == "quiz":
+    else:
+        st.session_state.page == "quiz"
 
     st.subheader("Quiz Running...")
 
