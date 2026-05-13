@@ -150,8 +150,8 @@ else:
 
     elif st.session_state.page == "home":
 
-    st.title("Welcome to English Quiz")
-    st.write(f"You are logged in as {st.session_state.user}")
+        st.title("Welcome to English Quiz")
+        st.write(f"You are logged in as {st.session_state.user}")
 
     if st.button("Start Quiz"):
         st.session_state.page = "quiz"
