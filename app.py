@@ -4,32 +4,12 @@ import time
 from questions import questions
 from auth import signup, login
 from leaderboard import leaderboard
-import json
-import os
 
-if "username" not in st.session_state:
-    st.session_state.username = ""
+# ---------------------------
+# PAGE CONFIG
+# ---------------------------
+st.set_page_config(page_title="English Quiz App", layout="centered")
 
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-if "q_index" not in st.session_state:
-    st.session_state.q_index = 0
-
-if "score" not in st.session_state:
-    st.session_state.score = 0
-# Initialize all session state variables at the start
-if 'num_q' not in st.session_state:
-    st.session_state.num_q = 10  # Default to 10 questions
-if 'q_index' not in st.session_state:
-    st.session_state.q_index = 0
-if 'score' not in st.session_state:
-    st.session_state.score = 0
-if 'questions' not in st.session_state:
-    st.session_state.questions = []
-if 'start_time' not in st.session_state:
-    import time
-    st.session_state.start_time = time.time() 
 st.markdown("""
 <style>
 .stButton>button {
@@ -40,61 +20,37 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ---------------------------
+# SESSION STATE INIT
+# ---------------------------
+if "page" not in st.session_state:
+    st.session_state.page = "login"
 
-st.set_page_config(page_title="Medical Quiz Pro", layout="centered")
-
-st.title("Login System")
-
-menu = ["Login", "Sign Up"]
-choice = st.sidebar.selectbox("Menu", menu)
-
-# SIGN UP
-if choice == "Sign Up":
-    st.subheader("Create Account")
-
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Sign Up"):
-        success, msg = signup(username, password)
-        if success:
-            st.success(msg)
-        else:
-            st.error(msg)
-    
-
-    st.title("Create Account")
-
-    username = st.text_input("New Username", key="signup_user")
-    password = st.text_input("New Password", type="password", key="signup_pass")
-
-    if st.button("Register"):
-        success, msg = signup(username, password)
-        st.success(msg)
-        st.session_state.page = "login"
-        st.rerun()
-
-    if st.button("Back to Login"):
-        st.session_state.page = "login"
-        st.rerun()
-
-
-            # Check if the user is already logged in
-if 'logged_in' not in st.session_state:
+if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-if not st.session_state.logged_in:
-    # --- SHOW LOGIN FORM ---
-    
-    if st.button("Login"):
-        success, msg = login(username, password)
-        if success:
-            st.session_state.logged_in = True
-            st.success(msg)
-            st.rerun() # This refreshes the app to show the quiz
-        else:
-            st.error(msg)
+if "user" not in st.session_state:
+    st.session_state.user = ""
 
+if "started" not in st.session_state:
+    st.session_state.started = False
+
+if "q_index" not in st.session_state:
+    st.session_state.q_index = 0
+
+if "score" not in st.session_state:
+    st.session_state.score = 0
+
+if "questions" not in st.session_state:
+    st.session_state.questions = []
+
+if "start_time" not in st.session_state:
+    st.session_state.start_time = 0
+
+
+# ---------------------------
+# LOGIN PAGE
+# ---------------------------
 if st.session_state.page == "login":
 
     st.title("Login System")
@@ -106,8 +62,9 @@ if st.session_state.page == "login":
         success, msg = login(username, password)
 
         if success:
-            st.session_state.page = "home"
+            st.session_state.logged_in = True
             st.session_state.user = username
+            st.session_state.page = "home"
             st.rerun()
         else:
             st.error(msg)
@@ -115,127 +72,130 @@ if st.session_state.page == "login":
     if st.button("Create Account"):
         st.session_state.page = "signup"
         st.rerun()
-else:
-    # --- SHOW QUIZ CONTENT HERE ---
-    st.title("Welcome to the English Language Quiz!")
-    st.write("You are now logged in.")
-    # Your quiz code goes here...
+
+
 # ---------------------------
-# MAIN APP
+# SIGNUP PAGE
 # ---------------------------
-    
+elif st.session_state.page == "signup":
 
-    # START SCREEN
-    if "started" not in st.session_state:
-        st.session_state.started = False
+    st.title("Create Account")
 
-    if not st.session_state.started:
-        st.subheader("Choose quiz length")
+    username = st.text_input("New Username", key="signup_user")
+    password = st.text_input("New Password", type="password", key="signup_pass")
 
-        num_q = st.selectbox("Select:", [10, 15, 20])
+    if st.button("Register"):
+        success, msg = signup(username, password)
 
-    if st.button("Start Quiz"):
-            st.session_state.started = True
-            st.session_state.num_q = num_q
-            st.session_state.score = 0
-            st.session_state.q_index = 0
-            st.session_state.start_time = time.time()
-
-            st.session_state.questions = random.sample(questions, num_q)
-
-            for q in st.session_state.questions:
-                random.shuffle(q["options"])
-
+        if success:
+            st.success(msg)
+            st.session_state.page = "login"
             st.rerun()
+        else:
+            st.error(msg)
 
-    elif st.session_state.page == "home":
-
-        st.title("Welcome to English Quiz")
-        st.write(f"You are logged in as {st.session_state.user}")
-
-    if st.button("Start Quiz"):
-        st.session_state.page = "quiz"
+    if st.button("Back"):
+        st.session_state.page = "login"
         st.rerun()
 
-    # QUIZ
-    else:
-        total_q = st.session_state.num_q
-        current_q = st.session_state.q_index
 
-        st.progress(current_q / total_q)
+# ---------------------------
+# HOME PAGE
+# ---------------------------
+elif st.session_state.page == "home":
+
+    st.title("Welcome to English Quiz")
+    st.write(f"Logged in as: **{st.session_state.user}**")
+
+    num_q = st.selectbox("Choose quiz length", [10, 15, 20])
+
+    if st.button("Start Quiz"):
+        st.session_state.questions = random.sample(questions, num_q)
+
+        for q in st.session_state.questions:
+            random.shuffle(q["options"])
+
+        st.session_state.q_index = 0
+        st.session_state.score = 0
+        st.session_state.started = True
+        st.session_state.start_time = time.time()
+        st.session_state.page = "quiz"
+
+        st.rerun()
+
+
+# ---------------------------
+# QUIZ PAGE
+# ---------------------------
+elif st.session_state.page == "quiz":
+
+    q_index = st.session_state.q_index
+    total = len(st.session_state.questions)
+
+    if q_index < total:
+
+        q = st.session_state.questions[q_index]
+
+        st.progress((q_index + 1) / total)
 
         elapsed = int(time.time() - st.session_state.start_time)
         st.write(f"⏱️ Time: {elapsed}s")
-current_q = st.session_state.q_index
-if current_q < len(st.session_state.questions):
 
-    q = st.session_state.questions[current_q]
+        st.subheader(f"Question {q_index + 1}/{total}")
+        st.write(q["question"])
 
-    st.subheader(f"Question {current_q + 1}/{total_q}")
-    st.write(q["question"])
+        selected = st.radio("Choose answer:", q["options"], key=q_index)
 
-    selected = st.radio("Choose answer:", q["options"], key=current_q)
+        if st.button("Submit"):
 
-    if st.button("Submit"):
-        if selected == q["answer"]:
-            st.success("✅ Correct")
-            st.session_state.score += 1
-        else:
-            st.error(f"❌ Correct: {q['answer']}")
+            if selected == q["answer"]:
+                st.success("Correct")
+                st.session_state.score += 1
+            else:
+                st.error(f"Correct answer: {q['answer']}")
 
-        st.session_state.q_index += 1
-        st.rerun()
+            st.session_state.q_index += 1
+            st.rerun()
+
     else:
-        st.session_state.page == "quiz"
-
-    st.subheader("Quiz Running...")
-
-    # your quiz logic here
-
-    if st.button("Finish Quiz"):
         st.session_state.page = "result"
         st.rerun()
 
-        # RESULT
-else:
-            st.success("🎉 Completed!")
-            total_q = len(st.session_state.questions)
-            score = st.session_state.score
-            st.metric("Score", f"{score}/{total_q}")
 
-            if score >= total_q * 0.8:
-                st.write("🔥 Excellent")
-            elif score >= total_q * 0.5:
-                st.write("👍 Good effort")
-            else:
-                st.write("📚 Revise more")
-       
-    st.success("Completed!")
+# ---------------------------
+# RESULT PAGE
+# ---------------------------
+elif st.session_state.page == "result":
 
-    st.write("Score here...")
+    st.title("🎉 Quiz Completed!")
 
-    if st.button("Back to Home"):
+    score = st.session_state.score
+    total = len(st.session_state.questions)
+    time_taken = int(time.time() - st.session_state.start_time)
+
+    st.metric("Score", f"{score}/{total}")
+    st.write(f"⏱️ Time: {time_taken}s")
+
+    if score >= total * 0.8:
+        st.success("🔥 Excellent")
+    elif score >= total * 0.5:
+        st.warning("👍 Good effort")
+    else:
+        st.info("📚 Keep practicing")
+
+    leaderboard.append({
+        "user": st.session_state.user,
+        "score": score,
+        "time": time_taken
+    })
+
+    st.subheader("🏆 Leaderboard")
+
+    sorted_board = sorted(leaderboard, key=lambda x: (-x["score"], x["time"]))
+
+    for i, entry in enumerate(sorted_board[:5]):
+        st.write(f"{i+1}. {entry['user']} - {entry['score']} ({entry['time']}s)")
+
+    if st.button("Play Again"):
         st.session_state.page = "home"
         st.rerun()
-            elapsed = int(time.time() - st.session_state.start_time)
-            st.write(f"⏱️ Time: {elapsed}s")
-
-            # SAVE TO LEADERBOARD
-            leaderboard.append({
-                "user": st.session_state.username,
-                "score": score,
-                "time": elapsed
-            })
-
-            # SHOW LEADERBOARD
-            st.subheader("🏆 Leaderboard")
-
-            sorted_board = sorted(leaderboard, key=lambda x: (-x["score"], x["time"]))
-
-            for i, entry in enumerate(sorted_board[:5]):
-                st.write(f"{i+1}. {entry['user']} - {entry['score']} ({entry['time']}s)")
-
-            # Restart
-            if st.button("🔄 Play Again"):
-                st.session_state.started = False
-                st.rerun()
