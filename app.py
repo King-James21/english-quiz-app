@@ -61,7 +61,7 @@ if choice == "Sign Up":
             st.success(msg)
         else:
             st.error(msg)
-            elif st.session_state.page == "signup":
+    
 
     st.title("Create Account")
 
