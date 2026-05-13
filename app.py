@@ -1,4 +1,4 @@
-import streamlit as st
+    import streamlit as st
 import random
 import time
 from questions import questions
@@ -61,6 +61,22 @@ if choice == "Sign Up":
             st.success(msg)
         else:
             st.error(msg)
+            elif st.session_state.page == "signup":
+
+    st.title("Create Account")
+
+    username = st.text_input("New Username", key="signup_user")
+    password = st.text_input("New Password", type="password", key="signup_pass")
+
+    if st.button("Register"):
+        success, msg = signup(username, password)
+        st.success(msg)
+        st.session_state.page = "login"
+        st.rerun()
+
+    if st.button("Back to Login"):
+        st.session_state.page = "login"
+        st.rerun()
 
 
             # Check if the user is already logged in
@@ -78,6 +94,27 @@ if not st.session_state.logged_in:
             st.rerun() # This refreshes the app to show the quiz
         else:
             st.error(msg)
+
+if st.session_state.page == "login":
+
+    st.title("Login System")
+
+    username = st.text_input("Username", key="login_user")
+    password = st.text_input("Password", type="password", key="login_pass")
+
+    if st.button("Login"):
+        success, msg = login(username, password)
+
+        if success:
+            st.session_state.page = "home"
+            st.session_state.user = username
+            st.rerun()
+        else:
+            st.error(msg)
+
+    if st.button("Create Account"):
+        st.session_state.page = "signup"
+        st.rerun()
 else:
     # --- SHOW QUIZ CONTENT HERE ---
     st.title("Welcome to the English Language Quiz!")
@@ -111,6 +148,15 @@ else:
 
             st.rerun()
 
+    elif st.session_state.page == "home":
+
+    st.title("Welcome to English Quiz")
+    st.write(f"You are logged in as {st.session_state.user}")
+
+    if st.button("Start Quiz"):
+        st.session_state.page = "quiz"
+        st.rerun()
+
     # QUIZ
     else:
         total_q = st.session_state.num_q
@@ -139,6 +185,15 @@ if current_q < len(st.session_state.questions):
 
         st.session_state.q_index += 1
         st.rerun()
+        elif st.session_state.page == "quiz":
+
+    st.subheader("Quiz Running...")
+
+    # your quiz logic here
+
+    if st.button("Finish Quiz"):
+        st.session_state.page = "result"
+        st.rerun()
 
         # RESULT
 else:
@@ -153,6 +208,15 @@ else:
                 st.write("👍 Good effort")
             else:
                 st.write("📚 Revise more")
+                elif st.session_state.page == "result":
+
+    st.success("Completed!")
+
+    st.write("Score here...")
+
+    if st.button("Back to Home"):
+        st.session_state.page = "home"
+        st.rerun()
             elapsed = int(time.time() - st.session_state.start_time)
             st.write(f"⏱️ Time: {elapsed}s")
 
