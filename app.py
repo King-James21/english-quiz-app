@@ -1,21 +1,28 @@
 import streamlit as st
-import random
-import time
-import json
-
-from questions import questions
+import random, time, json, bcrypt
 from auth import signup, login
 
-# ---------------------------
-# CONFIG
-# ---------------------------
+# ---------------- CONFIG ----------------
 st.set_page_config(page_title="CBT Quiz System", layout="centered")
 
-st.title("📘 CBT English Quiz System")
+# ---------------- EMAIL ----------------
+import smtplib
+from email.mime.text import MIMEText
 
-# ---------------------------
-# LOAD FILES
-# ---------------------------
+EMAIL_ADDRESS = "yourgmail@gmail.com"
+EMAIL_PASSWORD = "yourapppassword"
+
+def send_email(to, subject, body):
+    msg = MIMEText(body)
+    msg["Subject"] = subject
+    msg["From"] = EMAIL_ADDRESS
+    msg["To"] = to
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+        server.send_message(msg)
+
+# ---------------- HELPERS ----------------
 def load_json(file, default):
     try:
         with open(file, "r") as f:
@@ -27,198 +34,157 @@ def save_json(file, data):
     with open(file, "w") as f:
         json.dump(data, f)
 
-def generate_code(name):
+def gen_code(name):
     return name[:3].upper() + str(random.randint(100,999))
 
-referrals = load_json("referrals.json", {})
+# ---------------- LOAD DATA ----------------
+users = load_json("users.json", {})
+logs = load_json("users_log.json", [])
+analytics = load_json("analytics.json", [])
 leaderboard = load_json("leaderboard.json", [])
+referrals = load_json("referrals.json", {})
 
-# ---------------------------
-# SESSION STATE
-# ---------------------------
-if "page" not in st.session_state:
-    st.session_state.page = "login"
+# ---------------- SESSION ----------------
+for key, val in {
+    "page":"login","user":"","score":0,"q_index":0,
+    "questions":[],"start_time":0,"points":0,"ref_code":""
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = val
 
-if "user" not in st.session_state:
-    st.session_state.user = ""
-
-if "score" not in st.session_state:
-    st.session_state.score = 0
-
-if "q_index" not in st.session_state:
-    st.session_state.q_index = 0
-
-if "questions" not in st.session_state:
-    st.session_state.questions = []
-
-if "start_time" not in st.session_state:
-    st.session_state.start_time = 0
-
-if "ref_code" not in st.session_state:
-    st.session_state.ref_code = ""
-
-if "points" not in st.session_state:
-    st.session_state.points = 0
-
-
-# ---------------------------
-# LOGIN PAGE
-# ---------------------------
+# ---------------- LOGIN ----------------
 if st.session_state.page == "login":
 
-    username = st.text_input("Username", key="login_user")
-    password = st.text_input("Password", type="password", key="login_pass")
+    u = st.text_input("Username")
+    p = st.text_input("Password", type="password")
 
     if st.button("Login"):
-        success, msg = login(username, password)
-
-        if success:
-            st.session_state.user = username
-            st.session_state.ref_code = referrals.get(username, {}).get("code", "")
-            st.session_state.points = referrals.get(username, {}).get("points", 0)
+        ok, msg = login(u,p)
+        if ok:
+            st.session_state.user = u
             st.session_state.page = "home"
             st.rerun()
         else:
             st.error(msg)
 
-    if st.button("Create Account"):
-        st.session_state.page = "signup"
-        st.rerun()
+    if st.button("Sign Up"):
+        st.session_state.page = "signup"; st.rerun()
 
+    if st.button("Forgot Password"):
+        st.session_state.page = "forgot"; st.rerun()
 
-# ---------------------------
-# SIGNUP PAGE
-# ---------------------------
+# ---------------- SIGNUP ----------------
 elif st.session_state.page == "signup":
 
-    username = st.text_input("New Username", key="signup_user")
-    password = st.text_input("New Password", type="password", key="signup_pass")
-    referral = st.text_input("Referral Code (optional)", key="ref_input")
+    u = st.text_input("Username")
+    p = st.text_input("Password", type="password")
+    email = st.text_input("Email")
+    ref = st.text_input("Referral Code (optional)")
 
     if st.button("Register"):
-        success, msg = signup(username, password)
+        ok, msg = signup(u,p)
+        if ok:
+            users[u]["email"] = email
+            code = gen_code(u)
 
-        if success:
+            referrals[u] = {"code":code,"points":0,"invited_by":ref}
 
-            code = generate_code(username)
+            if ref:
+                for k,v in referrals.items():
+                    if v["code"] == ref:
+                        v["points"] += 10
 
-            referrals[username] = {
-                "code": code,
-                "invited_by": referral if referral else None,
-                "points": 0
-            }
-
-            # reward inviter
-            if referral:
-                for user, data in referrals.items():
-                    if data.get("code") == referral:
-                        data["points"] += 10
-
+            save_json("users.json", users)
             save_json("referrals.json", referrals)
 
             st.success("Account created!")
             st.session_state.page = "login"
             st.rerun()
+
+# ---------------- FORGOT PASSWORD ----------------
+elif st.session_state.page == "forgot":
+
+    u = st.text_input("Username")
+
+    if st.button("Send OTP"):
+        if u in users:
+            code = str(random.randint(100000,999999))
+            st.session_state.reset = code
+            st.session_state.reset_user = u
+            st.session_state.reset_time = time.time()
+
+            send_email(users[u]["email"],"OTP Code",f"Code: {code}")
+            st.success("OTP sent")
         else:
-            st.error(msg)
+            st.error("User not found")
 
-    if st.button("Back"):
-        st.session_state.page = "login"
-        st.rerun()
+    otp = st.text_input("OTP")
+    newp = st.text_input("New Password", type="password")
 
+    if st.button("Reset"):
+        if time.time() - st.session_state.get("reset_time",0) > 300:
+            st.error("Expired"); st.stop()
 
-# ---------------------------
-# HOME PAGE (VIRAL HUB)
-# ---------------------------
+        if otp == st.session_state.get("reset"):
+            hashed = bcrypt.hashpw(newp.encode(), bcrypt.gensalt()).decode()
+            users[u]["password"] = hashed
+            save_json("users.json", users)
+
+            st.success("Password updated")
+            st.session_state.page = "login"
+            st.rerun()
+
+# ---------------- HOME ----------------
 elif st.session_state.page == "home":
 
-    st.write(f"Welcome **{st.session_state.user}**")
+    st.write(f"Welcome {st.session_state.user}")
 
-    st.subheader("🎯 Referral System")
-    st.code(st.session_state.ref_code)
-    st.write(f"⭐ Points: {st.session_state.points}")
+    st.code(referrals.get(st.session_state.user,{}).get("code",""))
 
-    st.subheader("Choose Quiz Length")
-    num_q = st.selectbox("Questions", [5, 10, 15, 20])
+    n = st.selectbox("Questions",[5,10,15])
 
-    if st.button("Start Quiz 🚀"):
-
-        st.session_state.questions = random.sample(questions, num_q)
+    if st.button("Start"):
+        from questions import questions
+        st.session_state.questions = random.sample(questions,n)
         st.session_state.q_index = 0
         st.session_state.score = 0
         st.session_state.start_time = time.time()
         st.session_state.page = "quiz"
-
         st.rerun()
 
-    st.subheader("🏆 Top Players")
-
-    sorted_board = sorted(leaderboard, key=lambda x: (-x["score"], x["time"]))
-
-    for i, entry in enumerate(sorted_board[:5]):
-        st.write(f"{i+1}. {entry['user']} - {entry['score']}")
-
-
-# ---------------------------
-# QUIZ PAGE
-# ---------------------------
+# ---------------- QUIZ ----------------
 elif st.session_state.page == "quiz":
 
     i = st.session_state.q_index
     total = len(st.session_state.questions)
 
     if i < total:
-
         q = st.session_state.questions[i]
-
-        st.progress((i+1)/total)
-        st.write(q["question"])
-
-        answer = st.radio("Choose answer:", q["options"], key=i)
+        ans = st.radio(q["question"], q["options"], key=i)
 
         if st.button("Submit"):
-
-            if answer == q["answer"]:
-                st.success("Correct")
+            if ans == q["answer"]:
                 st.session_state.score += 1
-            else:
-                st.error(f"Correct: {q['answer']}")
-
             st.session_state.q_index += 1
             st.rerun()
-
     else:
         st.session_state.page = "result"
         st.rerun()
 
-
-# ---------------------------
-# RESULT PAGE (VIRAL ENGINE)
-# ---------------------------
+# ---------------- RESULT ----------------
 elif st.session_state.page == "result":
 
     score = st.session_state.score
     total = len(st.session_state.questions)
-    time_taken = int(time.time() - st.session_state.start_time)
-
-    st.title("🎉 Completed!")
 
     st.metric("Score", f"{score}/{total}")
-    st.write(f"⏱️ Time: {time_taken}s")
 
-    leaderboard.append({
-        "user": st.session_state.user,
-        "score": score,
-        "time": time_taken
-    })
+    analytics.append({"user":st.session_state.user,"score":score})
+    save_json("analytics.json", analytics)
 
-    save_json("leaderboard.json", leaderboard)
+    share = f"I scored {score}/{total}! Join me!"
+    st.code(share)
 
-    share_text = f"I scored {score}/{total} in CBT Quiz 🔥 Join using code {st.session_state.ref_code}"
-
-    st.subheader("📲 Share")
-    st.code(share_text)
-
-    if st.button("Play Again"):
+    if st.button("Home"):
         st.session_state.page = "home"
         st.rerun()
