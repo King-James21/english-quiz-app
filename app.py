@@ -6,9 +6,9 @@ from auth import signup, login
 from leaderboard import leaderboard
 
 # ---------------------------
-# PAGE CONFIG
+# CONFIG
 # ---------------------------
-st.set_page_config(page_title="English Quiz App", layout="centered")
+st.set_page_config(page_title="CBT Quiz Challenge", layout="centered")
 
 st.markdown("""
 <style>
@@ -21,19 +21,16 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------------------
-# SESSION STATE INIT
+# SESSION STATE
 # ---------------------------
 if "page" not in st.session_state:
     st.session_state.page = "login"
 
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
 if "user" not in st.session_state:
     st.session_state.user = ""
 
-if "started" not in st.session_state:
-    st.session_state.started = False
+if "questions" not in st.session_state:
+    st.session_state.questions = []
 
 if "q_index" not in st.session_state:
     st.session_state.q_index = 0
@@ -41,19 +38,17 @@ if "q_index" not in st.session_state:
 if "score" not in st.session_state:
     st.session_state.score = 0
 
-if "questions" not in st.session_state:
-    st.session_state.questions = []
-
 if "start_time" not in st.session_state:
     st.session_state.start_time = 0
 
 
-# ---------------------------
+# =========================
 # LOGIN PAGE
-# ---------------------------
+# =========================
 if st.session_state.page == "login":
 
-    st.title("Login System")
+    st.title("📘 CBT English Quiz Challenge")
+    st.subheader("Test yourself & compete with friends 🔥")
 
     username = st.text_input("Username", key="login_user")
     password = st.text_input("Password", type="password", key="login_pass")
@@ -62,7 +57,6 @@ if st.session_state.page == "login":
         success, msg = login(username, password)
 
         if success:
-            st.session_state.logged_in = True
             st.session_state.user = username
             st.session_state.page = "home"
             st.rerun()
@@ -74,9 +68,9 @@ if st.session_state.page == "login":
         st.rerun()
 
 
-# ---------------------------
+# =========================
 # SIGNUP PAGE
-# ---------------------------
+# =========================
 elif st.session_state.page == "signup":
 
     st.title("Create Account")
@@ -88,7 +82,7 @@ elif st.session_state.page == "signup":
         success, msg = signup(username, password)
 
         if success:
-            st.success(msg)
+            st.success("Account created!")
             st.session_state.page = "login"
             st.rerun()
         else:
@@ -99,34 +93,45 @@ elif st.session_state.page == "signup":
         st.rerun()
 
 
-# ---------------------------
-# HOME PAGE
-# ---------------------------
+# =========================
+# HOME PAGE (TRAFFIC HUB)
+# =========================
 elif st.session_state.page == "home":
 
-    st.title("Welcome to English Quiz")
-    st.write(f"Logged in as: **{st.session_state.user}**")
+    st.title("🔥 CBT Challenge Arena")
 
-    num_q = st.selectbox("Choose quiz length", [10, 15, 20])
+    st.write(f"Welcome **{st.session_state.user}**")
 
-    if st.button("Start Quiz"):
+    st.info("👉 Take the quiz and compete on the leaderboard!")
+
+    st.subheader("Choose Difficulty")
+
+    num_q = st.selectbox("Number of Questions", [5, 10, 15, 20])
+
+    if st.button("Start Challenge 🚀"):
+
         st.session_state.questions = random.sample(questions, num_q)
-
-        for q in st.session_state.questions:
-            random.shuffle(q["options"])
-
         st.session_state.q_index = 0
         st.session_state.score = 0
-        st.session_state.started = True
         st.session_state.start_time = time.time()
         st.session_state.page = "quiz"
 
         st.rerun()
 
+    # LEADERBOARD PREVIEW (TRAFFIC DRIVER)
+    st.subheader("🏆 Top Players")
 
-# ---------------------------
+    sorted_board = sorted(leaderboard, key=lambda x: (-x["score"], x["time"]))
+
+    for i, entry in enumerate(sorted_board[:5]):
+        st.write(f"{i+1}. {entry['user']} - {entry['score']}")
+
+    st.caption("🔥 Share your score and challenge friends!")
+
+
+# =========================
 # QUIZ PAGE
-# ---------------------------
+# =========================
 elif st.session_state.page == "quiz":
 
     q_index = st.session_state.q_index
@@ -138,21 +143,19 @@ elif st.session_state.page == "quiz":
 
         st.progress((q_index + 1) / total)
 
-        elapsed = int(time.time() - st.session_state.start_time)
-        st.write(f"⏱️ Time: {elapsed}s")
+        st.write(f"⏱️ Time: {int(time.time() - st.session_state.start_time)}s")
 
-        st.subheader(f"Question {q_index + 1}/{total}")
-        st.write(q["question"])
+        st.subheader(q["question"])
 
-        selected = st.radio("Choose answer:", q["options"], key=q_index)
+        answer = st.radio("Choose answer:", q["options"], key=q_index)
 
         if st.button("Submit"):
 
-            if selected == q["answer"]:
-                st.success("Correct")
+            if answer == q["answer"]:
+                st.success("Correct ✅")
                 st.session_state.score += 1
             else:
-                st.error(f"Correct answer: {q['answer']}")
+                st.error(f"Wrong ❌ Correct: {q['answer']}")
 
             st.session_state.q_index += 1
             st.rerun()
@@ -162,12 +165,12 @@ elif st.session_state.page == "quiz":
         st.rerun()
 
 
-# ---------------------------
-# RESULT PAGE
-# ---------------------------
+# =========================
+# RESULT PAGE (VIRAL ENGINE)
+# =========================
 elif st.session_state.page == "result":
 
-    st.title("🎉 Quiz Completed!")
+    st.title("🎉 Challenge Completed!")
 
     score = st.session_state.score
     total = len(st.session_state.questions)
@@ -176,26 +179,29 @@ elif st.session_state.page == "result":
     st.metric("Score", f"{score}/{total}")
     st.write(f"⏱️ Time: {time_taken}s")
 
-    if score >= total * 0.8:
-        st.success("🔥 Excellent")
-    elif score >= total * 0.5:
-        st.warning("👍 Good effort")
-    else:
-        st.info("📚 Keep practicing")
-
+    # Save leaderboard
     leaderboard.append({
         "user": st.session_state.user,
         "score": score,
         "time": time_taken
     })
 
+    # VIRAL SHARE MESSAGE
+    share_text = f"I scored {score}/{total} in CBT English Quiz! 🔥 Can you beat me?"
+
+    st.subheader("📲 Share Challenge")
+    st.code(share_text)
+
+    st.success("Send this to your friends on WhatsApp!")
+
+    # Leaderboard
     st.subheader("🏆 Leaderboard")
 
     sorted_board = sorted(leaderboard, key=lambda x: (-x["score"], x["time"]))
 
     for i, entry in enumerate(sorted_board[:5]):
-        st.write(f"{i+1}. {entry['user']} - {entry['score']} ({entry['time']}s)")
+        st.write(f"{i+1}. {entry['user']} - {entry['score']}")
 
-    if st.button("Play Again"):
+    if st.button("Play Again 🔄"):
         st.session_state.page = "home"
         st.rerun()
