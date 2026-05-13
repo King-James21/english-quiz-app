@@ -209,8 +209,8 @@ else:
                 st.write("👍 Good effort")
             else:
                 st.write("📚 Revise more")
- else:
-     st.session_state.page == "result"
+         else:
+             st.session_state.page == "result"
 
     st.success("Completed!")
 
